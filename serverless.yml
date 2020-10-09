@@ -1,6 +1,7 @@
 service: highscorebackend
 configValidationMode: error  
-custom: 
+custom:
+  tableName: highscore
   webpack: 
     webpackConfig: ./webpack.config.js
     includeModules: true
@@ -21,8 +22,15 @@ provider:
   runtime: nodejs12.x
   stage: prod
   region: eu-west-1
+  enviroment:
+    tablename: ${self:custom.tableName}
   memorySize: 128
   timeout: 30
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:*              
+      Resource: '*'
 
 plugins:
  - serverless-webpack 
@@ -31,29 +39,35 @@ plugins:
 
 
 functions:
-  hello:
-    handler: handler.hello
+  createPlayerScore:
+    handler: lambdas/endpoints/createPlayerScore.handler
     events:
-      - http: 
-          path: hello
-          method: get
-
-#   you can add any of the following events
-#   events:
-#     - http:
-#         path: users/create
-#         method: get
-#     - s3: ${bucket}
-#     - schedule: rate(10 minutes)
-#     - sns: greeter-topic
-
+      - http:
+          path: create-player-score
+          method: post
+          cors: true  
+  getPlayerScore:
+      handler: lambdas/endpoints/getPlayerScore.handler
+      events:
+        - http:
+            path: get-player-score/{playerId}
+            method: get
+            cors: true       
+  getPlayers:
+      handler: lambdas/endpoints/getPlayers.handler
+      events:
+        - http:
+            path: get-players/{game}
+            method: get
+            cors: true       
+                                      
 # you can add CloudFormation resource templates here
 resources:
   Resources:
-    highscore:
+    highscores:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: highscore
+        TableName: ${self:custom.tableName}
         AttributeDefinitions:
           - AttributeName: ID
             AttributeType: S
@@ -62,7 +76,7 @@ resources:
             KeyType: HASH      
         ProvisionedThroughput:
           ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
+          WriteCapacityUnits: 1             
 #  Outputs:
 #     NewOutput:
 #       Description: "Description for the output"
